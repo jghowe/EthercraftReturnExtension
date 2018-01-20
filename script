@@ -1,0 +1,77 @@
+// ==UserScript==
+// @name         Ethercraft Dividend Extension
+// @namespace    https://github.com/jghowe/EthercraftDividendExtension
+// @version      0.1
+// @description  Shows total dividends owed on ethercraft.io
+// @author       jghowe
+// @match        ethercraft.io/*
+// @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.18.2/babel.js
+// @require      http://code.jquery.com/jquery-3.2.1.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/bluebird/3.5.1/bluebird.min.js
+// ==/UserScript==
+
+$(document).ready(() => {
+
+    /* original Javascript snippet to grab this information came from the following reddit post
+     * https://www.reddit.com/r/ethercraft/comments/7qpv2w/quick_js_function_to_check_your_owed_balance/
+     */
+     
+    function getTotalBalance() {
+        totalBalance = 0;
+        for (var item in items) totalBalance += items[item];
+        return totalBalance;
+    }
+
+    function getBalanceOwed(t, e, callback) {
+        var a = web3.eth.contract(Enchanted).at(t);
+        var n = web3.eth.defaultAccount;
+        const c = 1e18;
+        a.object.call(function(t, i) {
+            var l = web3.eth.contract(ERC20).at(i);
+            a.balanceOwed.call(n, function(t, i) {
+                a.excessEth.call(n, function(t, o) {
+                    a.latestBalanceCheck.call(n, function(t, d) {
+                        a.itemReturn.call(function(t, u) {
+                            l.totalSupply.call(function(t, l) {
+                                a.itemsOwned.call(n, function(t, a) {
+                                    returnsUnaccounted = l.minus(d).dividedBy(c).times(u).times(a.dividedBy(c));
+                                    var n = i.plus(o).plus(returnsUnaccounted);
+                                    var r = parseFloat(n.dividedBy(c).toFixed(5));
+                                    0 != r && (items[e] = r) && console.log(`${e}: ${r} ETH`);
+                                    callback();
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    let ethPrice = 0;
+
+    $.get("https://api.coinmarketcap.com/v1/ticker/ethereum/", data => {
+        ethPrice =  parseFloat(data[0].price_usd);
+    });
+
+    var items = {};
+    var promises = [];
+    for (var item in itemDB) {
+        if (itemDB[item].enchanted) {
+            promises.push(
+                Promise.fromCallback(callback => getBalanceOwed(itemDB[item].address, itemDB[item].strings[0].name, callback)));
+        }
+    }
+
+    Promise
+    .all(promises)
+    .then(function() {
+        const balance = getTotalBalance();
+        console.log("Total balance: " + balance + "ETH");
+        document.getElementById("extInfo").innerHTML = balance.toFixed(5) + " ETH ($" + (balance * ethPrice).toFixed(2) + ")";
+    }, 10000);
+
+    $("body").append("<style> .extInfo {  padding-top: 3px; transition: 0.5s; overflow:hidden; width: auto; height: 16px; z-index: 100; position:absolute; top:0; left:0; box-shadow: 0 3px rgba(143, 141, 138, 0.6); border-width: 0.5px; background-color: #dff7f1; color:rgba(0,0,0, 0.76); font-size: 12px; padding-left: 4px; padding-right: 4px; } </style>");
+    $("body").append("<div id='extInfo' class='extInfo'>Loading...</div>");
+});
