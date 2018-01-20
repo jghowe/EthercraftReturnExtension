@@ -1,8 +1,12 @@
 # Ethercraft Dividend Extension
 
-Shows dividends owed on ethercraft.io
+Shows total dividends owed on ethercraft.io.
 
 ![Example](example.png?raw=true "Example")
+
+Also shows dividend owed on each item on inventory screen.
+
+![Item Example](example2.png?raw=true "Item Example")
 
 ### Installing
 * Requires Chrome and the [Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en) extension (not currently working in Firefox). 
