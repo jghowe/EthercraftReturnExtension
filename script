@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ethercraft Dividend Extension
 // @namespace    https://github.com/jghowe/EthercraftDividendExtension
-// @version      0.2
+// @version      0.3
 // @description  Shows dividends owed on ethercraft.io
 // @author       jghowe
 // @match        ethercraft.io/*
@@ -25,7 +25,7 @@ $(document).ready(() => {
 
     function getBalanceOwed(t, e, itemId, callback) {
         var a = web3.eth.contract(Enchanted).at(t);
-        var n = web3.eth.defaultAccount;
+        var n = window.location.hash.replace(/.*inventory\//,'') || web3.eth.defaultAccount;
         const c = 1e18;
         a.object.call(function(t, i) {
             var l = web3.eth.contract(ERC20).at(i);
@@ -74,6 +74,7 @@ $(document).ready(() => {
 
     function getItemBalances() {
         var promises = [];
+        items = {};
         for (var item in itemDB) {
             if (itemDB[item].enchanted) {
                 promises.push(
@@ -83,11 +84,11 @@ $(document).ready(() => {
 
         Promise
             .all(promises)
-            .then(function() {
-            const balance = getTotalBalance();
-            console.log("Total balance: " + balance + "ETH");
-            document.getElementById("extInfo").innerHTML = balance.toFixed(5) + " ETH ($" + (balance * ethPrice).toFixed(2) + ")";
-        });
+            .then(() => {
+                const balance = getTotalBalance();
+                console.log("Total balance: " + balance + "ETH");
+                document.getElementById("extInfo").innerHTML = balance.toFixed(5) + " ETH ($" + (balance * ethPrice).toFixed(2) + ")";
+            });
     }
 
     getItemBalances();
