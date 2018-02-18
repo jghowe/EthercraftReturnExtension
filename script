@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ethercraft Dividend Extension
 // @namespace    https://github.com/jghowe/EthercraftDividendExtension
-// @version      0.3
+// @version      0.4
 // @description  Shows dividends owed on ethercraft.io
 // @author       jghowe
 // @match        ethercraft.io/*
@@ -11,88 +11,140 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/bluebird/3.5.1/bluebird.min.js
 // ==/UserScript==
 
-$(document).ready(() => {
+/* eslint comma-dangle: 0 */
 
-    /* original Javascript snippet to grab this information came from the following reddit post
-     * https://www.reddit.com/r/ethercraft/comments/7qpv2w/quick_js_function_to_check_your_owed_balance/
-     */
+// constants
+const DECIMALS = 1e18;
+const ETH_PRICE_URL = 'https://api.coinmarketcap.com/v1/ticker/ethereum/';
+const ITEM_BALANCE_STYLE = 'padding-top: 14px; font-size: 8px; color: dimgray';
+const TOTAL_BALANCE_SYTLE = 'padding-top: 5px; color: dimgray';
 
-    function getTotalBalance() {
-        totalBalance = 0;
-        for (var item in items) totalBalance += items[item];
-        return totalBalance;
-    }
+// helper functions
+const add = (a, b) => a + b;
+const sum = values => values.reduce(add, 0);
+const tap = f => (value) => { f(value); return value; };
+const { assign } = Object;
 
-    function getBalanceOwed(t, e, itemId, callback) {
-        var a = web3.eth.contract(Enchanted).at(t);
-        var n = window.location.hash.replace(/.*inventory\//,'') || web3.eth.defaultAccount;
-        const c = 1e18;
-        a.object.call(function(t, i) {
-            var l = web3.eth.contract(ERC20).at(i);
-            a.balanceOwed.call(n, function(t, i) {
-                a.excessEth.call(n, function(t, o) {
-                    a.latestBalanceCheck.call(n, function(t, d) {
-                        a.itemReturn.call(function(t, u) {
-                            l.totalSupply.call(function(t, l) {
-                                a.itemsOwned.call(n, function(t, a) {
-                                    returnsUnaccounted = l.minus(d).dividedBy(c).times(u).times(a.dividedBy(c));
-                                    var n = i.plus(o).plus(returnsUnaccounted);
-                                    var r = parseFloat(n.dividedBy(c).toFixed(5));
-                                    if (r != 0) {
-                                        items[e] = r;
-                                        console.log(`${e}: ${r} ETH`);
-                                        let itemElement = $(`inventory-item[itemid=${itemId}] .wrapper`);
-                                        itemElement.append(`<div style='padding-top: 14px; font-size: 8px'>(${r.toFixed(4)})</div>`);
-                                    }
-                                    callback();
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    }
+// maninpulate DOM
+const getLocationAddress = () => window.location.hash.replace(/.*inventory\//, '') || web3.eth.defaultAccount;
+const waitForElement = selector => new Promise((resolve) => {
+  const element = $(selector);
+  if (element.length) {
+    resolve(element);
+  } else {
+    setTimeout(() => waitForElement(selector).then(resolve), 100);
+  }
+});
+const isInventoryPage = () => /inventory/.test(window.location.hash);
 
-    let ethPrice = 0;
+const insertItemBalance = item => waitForElement(`inventory-item[itemid=${item.index}] .wrapper`)
+  .then(element => element.append(`<div style="${ITEM_BALANCE_STYLE}">(${item.balance.toFixed(4)})</div>`));
 
-    $.get("https://api.coinmarketcap.com/v1/ticker/ethereum/", data => {
-        ethPrice =  parseFloat(data[0].price_usd);
+const insertTotalBalance = (balance, ethPrice) => {
+  waitForElement('.extInfo')
+    .then((element) => {
+      element.html(`BALANCE ${balance.toFixed(5)} ETH ($${(balance * ethPrice).toFixed(2)})`);
     });
+};
 
-    let currentHash = window.location.hash;
-    setInterval(() => {
-        if (currentHash != window.location.hash) {
-            currentHash = window.location.hash;
-            if (/inventory/.test(currentHash)) {
-                getItemBalances();
-            }
-        }
-    }, 1e3);
+const insertLoading = () => {
+  waitForElement('.inventory div div:nth-child(2)')
+    .then(element => element
+      .after(`<div class="extInfo" style="${TOTAL_BALANCE_SYTLE}">( Loading... )<div>`));
+};
 
-    var items = {};
-
-    function getItemBalances() {
-        var promises = [];
-        items = {};
-        for (var item in itemDB) {
-            if (itemDB[item].enchanted) {
-                promises.push(
-                    Promise.fromCallback(callback => getBalanceOwed(itemDB[item].address, itemDB[item].strings[0].name, item, callback)));
-            }
-        }
-
-        Promise
-            .all(promises)
-            .then(() => {
-                const balance = getTotalBalance();
-                console.log("Total balance: " + balance + "ETH");
-                document.getElementById("extInfo").innerHTML = balance.toFixed(5) + " ETH ($" + (balance * ethPrice).toFixed(2) + ")";
-            });
+const onLocationChange = (callback) => {
+  let currentHash = window.location.hash;
+  setInterval(() => {
+    if (currentHash !== window.location.hash) {
+      currentHash = window.location.hash;
+      if (isInventoryPage()) {
+        callback();
+      }
     }
+  }, 1e3);
+};
 
-    getItemBalances();
+// ETH helpers
+const getEthPrice = () => new Promise((resolve) => {
+  $.get(ETH_PRICE_URL, (data) => {
+    resolve(parseFloat(data[0].price_usd));
+  });
+});
 
-    $("body").append("<style> .extInfo {  padding-top: 3px; transition: 0.5s; overflow:hidden; width: auto; height: 16px; z-index: 100; position:absolute; top:0; left:0; box-shadow: 0 3px rgba(143, 141, 138, 0.6); border-width: 0.5px; background-color: #dff7f1; color:rgba(0,0,0, 0.76); font-size: 12px; padding-left: 4px; padding-right: 4px; } </style>");
-    $("body").append("<div id='extInfo' class='extInfo'>Loading...</div>");
+// math helpers
+const calcBalanceSinceLastCheck = (
+  totalSupply,
+  totalSupplyLastCheck,
+  dividendRate,
+  itemsOwned
+) => totalSupply
+  .minus(totalSupplyLastCheck)
+  .dividedBy(DECIMALS)
+  .times(dividendRate)
+  .times(itemsOwned)
+  .dividedBy(DECIMALS);
+
+const calcBalanceOwed = (
+  totalSupply,
+  totalSupplyLastCheck,
+  dividendRate,
+  itemsOwned,
+  balanceOwed,
+  excessEth
+) => calcBalanceSinceLastCheck(totalSupply, totalSupplyLastCheck, dividendRate, itemsOwned)
+  .plus(balanceOwed)
+  .plus(excessEth)
+  .dividedBy(DECIMALS)
+  .toNumber();
+
+// balance helpers
+const getToken = contractAddress => web3.eth.contract(ERC20).at(contractAddress);
+const getEnchantedShop = address => Promise.promisifyAll(web3.eth.contract(Enchanted).at(address));
+const getTotalSupply = contractAddress => Promise.fromCallback(callback =>
+  getToken(contractAddress).totalSupply(callback));
+
+const getBalanceOwedForItem = (enchantedShop, address) => Promise.join(
+  enchantedShop.objectAsync().then(getTotalSupply),
+  enchantedShop.latestBalanceCheckAsync(address),
+  enchantedShop.itemReturnAsync(),
+  enchantedShop.itemsOwnedAsync(address),
+  enchantedShop.balanceOwedAsync(address),
+  enchantedShop.excessEthAsync(address),
+  calcBalanceOwed
+);
+
+const getBalanceOwed = item => getBalanceOwedForItem(
+  getEnchantedShop(item.address),
+  getLocationAddress()
+)
+  .then(balance => assign({ balance }, item));
+
+const getItemsWithBalance = () => Promise.all(itemDB)
+  .map((item, index) => assign({ index }, item))
+  .filter(item => item.enchanted)
+  .map(getBalanceOwed)
+  .filter(item => item.balance);
+
+const insertBalanceInfo = () => Promise.join(
+  getItemsWithBalance()
+    .map(tap(insertItemBalance))
+    .map(item => item.balance)
+    .then(sum),
+  getEthPrice(),
+  insertTotalBalance
+);
+
+$(document).ready(() => {
+  const doInsert = () => {
+    insertLoading();
+    insertBalanceInfo();
+  };
+
+  // check for navigation away and back to inventory and then recalculate balances
+  onLocationChange(doInsert);
+
+  if (isInventoryPage()) {
+    doInsert();
+  }
 });
