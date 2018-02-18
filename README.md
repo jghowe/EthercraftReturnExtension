@@ -1,10 +1,10 @@
-# Ethercraft Dividend Extension
+# Ethercraft Return Extension
 
-Shows total dividends owed on ethercraft.io.  Can be used for any address.
+Shows total returns owed on ethercraft.io.  Can be used for any address.
 
 ![Example](example.png?raw=true "Example")
 
-Also shows dividend owed on each item on inventory screen.
+Also shows returns owed on each item on inventory screen.
 
 ![Item Example](example2.png?raw=true "Item Example")
 
