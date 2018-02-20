@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Ethercraft Dividend Extension
-// @namespace    https://github.com/jghowe/EthercraftDividendExtension
-// @version      0.4
-// @description  Shows dividends owed on ethercraft.io
+// @name         Ethercraft Return Extension
+// @namespace    https://github.com/jghowe/EthercraftReturnExtension
+// @version      0.4.1
+// @description  Shows returns owed on ethercraft.io
 // @author       jghowe
 // @match        ethercraft.io/*
 // @grant        none
@@ -76,23 +76,23 @@ const getEthPrice = () => new Promise((resolve) => {
 const calcBalanceSinceLastCheck = (
   totalSupply,
   totalSupplyLastCheck,
-  dividendRate,
+  returnRate,
   itemsOwned
 ) => totalSupply
   .minus(totalSupplyLastCheck)
   .dividedBy(DECIMALS)
-  .times(dividendRate)
+  .times(returnRate)
   .times(itemsOwned)
   .dividedBy(DECIMALS);
 
 const calcBalanceOwed = (
   totalSupply,
   totalSupplyLastCheck,
-  dividendRate,
+  returnRate,
   itemsOwned,
   balanceOwed,
   excessEth
-) => calcBalanceSinceLastCheck(totalSupply, totalSupplyLastCheck, dividendRate, itemsOwned)
+) => calcBalanceSinceLastCheck(totalSupply, totalSupplyLastCheck, returnRate, itemsOwned)
   .plus(balanceOwed)
   .plus(excessEth)
   .dividedBy(DECIMALS)
